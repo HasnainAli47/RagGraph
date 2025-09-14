@@ -94,12 +94,12 @@ st.markdown("""
 def process_input(content, input_type):
     """Unified function to chunk either PDF content or raw text."""
     if input_type == "PDF":
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(content)
-        tmp_file_path = tmp_file.name
-    loader = PyPDFLoader(tmp_file_path)
-    pages = loader.load()
-    os.remove(tmp_file_path)
+            tmp_file_path = tmp_file.name
+        loader = PyPDFLoader(tmp_file_path)
+        pages = loader.load()
+        os.remove(tmp_file_path)
         full_text = "".join(page.page_content for page in pages if page.page_content)
     else: # input_type == "Text"
         full_text = content
