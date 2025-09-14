@@ -259,26 +259,49 @@ with st.sidebar:
     st.markdown("---")
     st.info("This app transforms text into a dynamic knowledge graph, perfect for analyzing complex documents.")
     
-    # Admin panel for viewing logs
-    if st.checkbox("🔍 Show Admin Panel"):
-        st.markdown("### 📊 Usage Statistics")
-        try:
-            summary = logger.get_logs_summary()
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total Sessions", summary.get("total_sessions", 0))
-                st.metric("Unique IPs", summary.get("unique_ips", 0))
-            with col2:
-                st.metric("Total Searches", summary.get("total_searches", 0))
-                st.metric("Graphs Generated", summary.get("total_graphs_generated", 0))
-            
-            # Show recent activity
-            if summary.get("recent_activity"):
-                st.markdown("### 📝 Recent Activity")
-                for activity in summary["recent_activity"][-5:]:
-                    st.text(f"{activity['timestamp'][:19]} | {activity['ip_address']} | {activity['location']} | {activity['action']}")
-        except Exception as e:
-            st.error(f"Could not load logs: {str(e)}")
+    # Admin panel for viewing logs (restricted access)
+    admin_password = os.environ.get("ADMIN_PASSWORD") or st.secrets.get("ADMIN_PASSWORD", "")
+    
+    if admin_password:
+        # Show admin login
+        if st.checkbox("🔍 Admin Access"):
+            entered_password = st.text_input("Admin Password", type="password", key="admin_pw")
+            if entered_password == admin_password:
+                st.success("✅ Admin access granted")
+                st.markdown("### 📊 Usage Statistics")
+                try:
+                    summary = logger.get_logs_summary()
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Total Sessions", summary.get("total_sessions", 0))
+                        st.metric("Unique IPs", summary.get("unique_ips", 0))
+                    with col2:
+                        st.metric("Total Searches", summary.get("total_searches", 0))
+                        st.metric("Graphs Generated", summary.get("total_graphs_generated", 0))
+                    
+                    # Show recent activity
+                    if summary.get("recent_activity"):
+                        st.markdown("### 📝 Recent Activity")
+                        for activity in summary["recent_activity"][-5:]:
+                            st.text(f"{activity['timestamp'][:19]} | {activity['ip_address']} | {activity['location']} | {activity['action']}")
+                except Exception as e:
+                    st.error(f"Could not load logs: {str(e)}")
+            elif entered_password:
+                st.error("❌ Incorrect password")
+    else:
+        # Fallback: Show basic stats without sensitive data
+        if st.checkbox("📊 Show Basic Stats"):
+            try:
+                summary = logger.get_logs_summary()
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total Sessions", summary.get("total_sessions", 0))
+                    st.metric("Total Searches", summary.get("total_searches", 0))
+                with col2:
+                    st.metric("Graphs Generated", summary.get("total_graphs_generated", 0))
+                    st.metric("Success Rate", f"{(summary.get('total_graphs_generated', 0) / max(summary.get('total_searches', 1), 1) * 100):.1f}%")
+            except Exception as e:
+                st.error(f"Could not load stats: {str(e)}")
 
 # --- MAIN CONTENT ---
 if not groq_api_key:
