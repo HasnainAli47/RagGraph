@@ -430,12 +430,12 @@ if process_button:
                 
                 # Step 3: Build graph
                 with st.spinner("🕸️ Building knowledge graph..."):
-        graph = build_graph(all_triplets)
-        
+                    graph = build_graph(all_triplets)
+                
                 # Step 4: Generate visualization
                 with st.spinner("🎨 Generating interactive visualization..."):
-        html_file = generate_graph_html(graph)
-        with open(html_file, 'r', encoding='utf-8') as f:
+                    html_file = generate_graph_html(graph)
+                    with open(html_file, 'r', encoding='utf-8') as f:
                         st.session_state.html_data = f.read()
                     st.session_state.graph_generated = True
                 
