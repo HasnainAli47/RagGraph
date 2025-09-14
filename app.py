@@ -11,6 +11,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
 import time
+from logger import logger
 
 # --- CONFIGURATION & PAGE SETUP ---
 load_dotenv()  # For local development
@@ -183,6 +184,7 @@ def extract_triplets(chunks, api_key):
                 
         except Exception as e:
             st.write(f"❌ Chunk {i+1}: Error - {str(e)}")
+            logger.log_error("chunk_processing_error", f"Chunk {i+1}: {str(e)}")
     
     progress_bar.empty()
     return all_triplets
@@ -235,6 +237,11 @@ if 'graph_generated' not in st.session_state:
     st.session_state.graph_generated = False
 if 'html_data' not in st.session_state:
     st.session_state.html_data = None
+if 'session_id' not in st.session_state:
+    import uuid
+    st.session_state.session_id = str(uuid.uuid4())[:8]
+    # Log new session
+    logger.log_user_session("session_start")
 
 # --- UI LAYOUT ---
 st.title("🕸️ GraphifyAI: Automated Knowledge Graph Builder")
@@ -251,6 +258,27 @@ with st.sidebar:
         st.markdown("**For local:** Create a `.env` file with `GROQ_API_KEY=your_key`")
     st.markdown("---")
     st.info("This app transforms text into a dynamic knowledge graph, perfect for analyzing complex documents.")
+    
+    # Admin panel for viewing logs
+    if st.checkbox("🔍 Show Admin Panel"):
+        st.markdown("### 📊 Usage Statistics")
+        try:
+            summary = logger.get_logs_summary()
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Sessions", summary.get("total_sessions", 0))
+                st.metric("Unique IPs", summary.get("unique_ips", 0))
+            with col2:
+                st.metric("Total Searches", summary.get("total_searches", 0))
+                st.metric("Graphs Generated", summary.get("total_graphs_generated", 0))
+            
+            # Show recent activity
+            if summary.get("recent_activity"):
+                st.markdown("### 📝 Recent Activity")
+                for activity in summary["recent_activity"][-5:]:
+                    st.text(f"{activity['timestamp'][:19]} | {activity['ip_address']} | {activity['location']} | {activity['action']}")
+        except Exception as e:
+            st.error(f"Could not load logs: {str(e)}")
 
 # --- MAIN CONTENT ---
 if not groq_api_key:
@@ -286,6 +314,10 @@ if process_button:
         is_valid = False
 
     if is_valid:
+        # Log the search attempt
+        content_preview = input_content[:200] if input_content else ""
+        logger.log_search(input_type, content_preview)
+        
         # Step 1: Process input
         with st.spinner("📄 Processing input..."):
             chunks = process_input(input_content, input_type)
@@ -311,11 +343,22 @@ if process_button:
                         st.session_state.html_data = f.read()
                     st.session_state.graph_generated = True
                 
+                # Log successful graph generation
+                logger.log_graph_generation(
+                    len(all_triplets), 
+                    graph.number_of_nodes(), 
+                    graph.number_of_edges()
+                )
+                
                 st.success("🎉 Knowledge graph generated successfully!")
             else:
+                # Log failed extraction
+                logger.log_error("extraction_failed", "No triplets extracted from input")
                 st.error("❌ The AI could not extract any valid knowledge triplets from the input.", icon="🚨")
                 st.info("💡 Try with different text or check if the content contains clear entities and relationships.")
         else:
+            # Log failed processing
+            logger.log_error("processing_failed", "Could not extract text from input")
             st.error("❌ Could not extract any text from the input. The PDF might be image-based or corrupted.", icon="🚨")
 
 # --- DISPLAY OUTPUT ---

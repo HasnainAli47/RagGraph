@@ -8,3 +8,4 @@ pyvis
 thefuzz
 python-Levenshtein
 python-dotenv
+requests
