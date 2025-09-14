@@ -11,6 +11,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
 import time
+from datetime import datetime
 from logger import logger
 
 # --- CONFIGURATION & PAGE SETUP ---
@@ -93,12 +94,12 @@ st.markdown("""
 def process_input(content, input_type):
     """Unified function to chunk either PDF content or raw text."""
     if input_type == "PDF":
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(content)
-            tmp_file_path = tmp_file.name
-        loader = PyPDFLoader(tmp_file_path)
-        pages = loader.load()
-        os.remove(tmp_file_path)
+        tmp_file_path = tmp_file.name
+    loader = PyPDFLoader(tmp_file_path)
+    pages = loader.load()
+    os.remove(tmp_file_path)
         full_text = "".join(page.page_content for page in pages if page.page_content)
     else: # input_type == "Text"
         full_text = content
@@ -284,6 +285,78 @@ with st.sidebar:
                         st.markdown("### 📝 Recent Activity")
                         for activity in summary["recent_activity"][-5:]:
                             st.text(f"{activity['timestamp'][:19]} | {activity['ip_address']} | {activity['location']} | {activity['action']}")
+                    
+                    # Download complete logs
+                    st.markdown("### 📥 Download Complete Logs")
+                    try:
+                        with open("user_logs.json", 'r') as f:
+                            complete_logs = f.read()
+                        st.download_button(
+                            label="📄 Download Full Logs (JSON)",
+                            data=complete_logs,
+                            file_name=f"user_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json",
+                            help="Download complete user logs with all details"
+                        )
+                    except Exception as e:
+                        st.error(f"Could not read log file: {str(e)}")
+                    
+                    # Show detailed logs in expandable sections
+                    st.markdown("### 📋 Detailed Logs")
+                    try:
+                        with open("user_logs.json", 'r') as f:
+                            all_logs = json.load(f)
+                        
+                        # Group logs by action type
+                        search_logs = [log for log in all_logs if log['action'] == 'search']
+                        graph_logs = [log for log in all_logs if log['action'] == 'graph_generated']
+                        error_logs = [log for log in all_logs if log['action'] == 'error']
+                        
+                        # Show search logs
+                        if search_logs:
+                            with st.expander(f"🔍 Search Logs ({len(search_logs)} entries)"):
+                                for log in search_logs[-10:]:  # Show last 10
+                                    st.json({
+                                        "timestamp": log['timestamp'],
+                                        "ip": log['ip_address'],
+                                        "location": log['location'],
+                                        "search_type": log['details'].get('search_type'),
+                                        "content_preview": log['details'].get('content_preview', '')[:100]
+                                    })
+                        
+                        # Show graph generation logs
+                        if graph_logs:
+                            with st.expander(f"🕸️ Graph Generation Logs ({len(graph_logs)} entries)"):
+                                for log in graph_logs[-10:]:  # Show last 10
+                                    st.json({
+                                        "timestamp": log['timestamp'],
+                                        "ip": log['ip_address'],
+                                        "location": log['location'],
+                                        "triplets": log['details'].get('triplets_extracted'),
+                                        "nodes": log['details'].get('graph_nodes'),
+                                        "edges": log['details'].get('graph_edges')
+                                    })
+                        
+                        # Show error logs
+                        if error_logs:
+                            with st.expander(f"❌ Error Logs ({len(error_logs)} entries)"):
+                                for log in error_logs[-10:]:  # Show last 10
+                                    st.json({
+                                        "timestamp": log['timestamp'],
+                                        "ip": log['ip_address'],
+                                        "location": log['location'],
+                                        "error_type": log['details'].get('error_type'),
+                                        "error_message": log['details'].get('error_message')
+                                    })
+                                    
+                    except Exception as e:
+                        st.error(f"Could not load detailed logs: {str(e)}")
+                    
+                    # Show log file location
+                    st.markdown("### 📁 Log File Location")
+                    st.code("user_logs.json", language="text")
+                    st.info("💡 Logs are stored in the `user_logs.json` file on the server")
+                    
                 except Exception as e:
                     st.error(f"Could not load logs: {str(e)}")
             elif entered_password:
@@ -357,12 +430,12 @@ if process_button:
                 
                 # Step 3: Build graph
                 with st.spinner("🕸️ Building knowledge graph..."):
-                    graph = build_graph(all_triplets)
-                
+        graph = build_graph(all_triplets)
+        
                 # Step 4: Generate visualization
                 with st.spinner("🎨 Generating interactive visualization..."):
-                    html_file = generate_graph_html(graph)
-                    with open(html_file, 'r', encoding='utf-8') as f:
+        html_file = generate_graph_html(graph)
+        with open(html_file, 'r', encoding='utf-8') as f:
                         st.session_state.html_data = f.read()
                     st.session_state.graph_generated = True
                 
@@ -391,5 +464,5 @@ with col2:
         if st.session_state.graph_generated:
             st.components.v1.html(st.session_state.html_data, height=750, scrolling=True)
             st.download_button("Download Graph HTML", st.session_state.html_data, "knowledge_graph.html", "text/html", use_container_width=True)
-        else:
+else:
             st.info("Your interactive graph will be displayed here once it's generated.")
