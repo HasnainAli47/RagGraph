@@ -13,9 +13,18 @@ from dotenv import load_dotenv
 import time
 
 # --- CONFIGURATION & PAGE SETUP ---
-load_dotenv()
+load_dotenv()  # For local development
 MAX_FILE_SIZE_MB = 2
 MAX_TEXT_CHARS = 6000
+
+# Get API key from environment or Streamlit secrets
+def get_api_key():
+    # Try Streamlit secrets first (for deployment)
+    try:
+        return st.secrets["GROQ_API_KEY"]
+    except:
+        # Fall back to environment variable (for local development)
+        return os.environ.get("GROQ_API_KEY")
 
 st.set_page_config(
     page_title="GraphifyAI",
@@ -233,11 +242,13 @@ st.title("🕸️ GraphifyAI: Automated Knowledge Graph Builder")
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Configuration")
-    groq_api_key = os.environ.get("GROQ_API_KEY")
+    groq_api_key = get_api_key()
     if groq_api_key:
         st.success("API Key configured.", icon="✅")
     else:
         st.error("API Key not found.", icon="❌")
+        st.markdown("**For deployment:** Set `GROQ_API_KEY` in Streamlit Secrets")
+        st.markdown("**For local:** Create a `.env` file with `GROQ_API_KEY=your_key`")
     st.markdown("---")
     st.info("This app transforms text into a dynamic knowledge graph, perfect for analyzing complex documents.")
 
