@@ -464,5 +464,5 @@ with col2:
         if st.session_state.graph_generated:
             st.components.v1.html(st.session_state.html_data, height=750, scrolling=True)
             st.download_button("Download Graph HTML", st.session_state.html_data, "knowledge_graph.html", "text/html", use_container_width=True)
-else:
+    else:
             st.info("Your interactive graph will be displayed here once it's generated.")
