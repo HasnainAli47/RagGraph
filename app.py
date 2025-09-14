@@ -355,8 +355,24 @@ with st.sidebar:
                     
                     # Show log file location
                     st.markdown("### 📁 Log File Location")
+                    log_file_path = "user_logs.json"
                     st.code("user_logs.json", language="text")
                     st.info("💡 Logs are stored in the `user_logs.json` file on the server")
+
+                    # ✅ Add proper download button for the updated file
+                    if os.path.exists(log_file_path):
+                        with open(log_file_path, "r", encoding="utf-8") as f:
+                            file_data = f.read()
+                        
+                        st.download_button(
+                            label="📥 Download Full Logs (JSON)",
+                            data=file_data,
+                            file_name=f"user_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json",
+                            help="Download the complete and updated logs"
+                        )
+                    else:
+                        st.error("❌ Log file not found on the server.")
                     
                 except Exception as e:
                     st.error(f"Could not load logs: {str(e)}")
